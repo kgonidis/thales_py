@@ -1,1 +1,1 @@
-from . import minio_client
+from . import minio_client as minio
