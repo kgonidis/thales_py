@@ -7,5 +7,5 @@ setup(name='thalespy',
       author='Kiron Gonidis',
       author_email='kiron.gonidis@thalsegroup.com',
       license='MIT',
-      packages=['minio'],
+      packages=['thalespy'],
       zip_safe=False)
