@@ -3,13 +3,16 @@ import re
 from datetime import datetime as dt
 import pandas as pd
 from io import StringIO
+from os import environ
 
 minio_client = Minio(
-    '192.168.1.151:9000',
-    'rtuser',
-    'rtuser123',
+    environ['MINIO_URL'],
+    environ['MINIO_PUBKEY'],
+    environ['MINIO_PRVKEY'],
     secure=False
 )
+
+
 error_bucket = 'error-analysis'
 
 
@@ -58,7 +61,3 @@ def get_error_file(obj_name, **kwargs):
     m_obj = minio_client.get_object(error_bucket, obj_name)
     return pd.read_csv(StringIO(m_obj.data.decode('utf-8')), **kwargs)
 
-
-for o in list_error_files(dt(2019,12,4)):
-    print(get_error_file(o['file'], index_col='epoch'))
-    break
