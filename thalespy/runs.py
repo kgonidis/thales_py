@@ -20,7 +20,7 @@ data_folders = {
         'ext': ['.csv', '.imu.csv', '.uwb.csv']
     },
     'dense': {
-        'folder': 'ngps-dense_uwb_1.21',
+        'folder': 'ngps-dense_uwb_1.20',
         'ext': ['.csv', '.imu.csv', '.uwb.csv']
     }
 }
@@ -34,7 +34,7 @@ def get_lidar_files():
                 yield { 'file': f, 'full': os.path.join(lidar_folder, f), 'base': base }
 
 
-def import_runs():
+def import_runs(data_folders=data_folders):
     for mfile in get_lidar_files():
         base = mfile['base']
         for key in data_folders:
