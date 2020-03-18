@@ -15,6 +15,12 @@ minio_client = Minio(
 base_regex = r'(?P<base>\d{4}-\d{2}-\d{2}_\d{2}_\d{2}_\d{2}-\d+-.+?-.+?)[-,_,\.].*'
 ext_regex = r'(?P<base>\d{4}-\d{2}-\d{2}_\d{2}_\d{2}_\d{2}-\d+-.+?-.+?)[-,_,\.](?P<ext>.*?)\.csv'
 error_bucket = 'error-analysis'
+run_bucket = 'ngps-processing'
+
+def check_base(filename, regex=base_regex):
+    pattern = re.compile(regex)
+    match = pattern.match(filename)
+    return match is not None
 
 
 def get_base(filename, regex=base_regex):
@@ -39,7 +45,7 @@ def parse_error_title(ext):
 
 
 def check_date(filename):
-    regex=r'(?P<Y>\d{4})-(?P<m>\d{2})-(?P<d>\d{2})_(?P<H>\d{2})_(?P<M>\d{2})_(?P<S>\d{2})-(?P<STS>\d.*?)-(?P<RT>.*?)-(?P<OR>.*?).*\.csv'
+    regex=r'(?P<Y>\d{4})-(?P<m>\d{2})-(?P<d>\d{2})_(?P<H>\d{2})_(?P<M>\d{2})_(?P<S>\d{2})-(?P<STS>\d.*?)-(?P<RT>.*?)-(?P<OR>.*?).*'
     pattern = re.compile(regex)
     match = pattern.match(filename)
     if not match:
@@ -63,6 +69,42 @@ def check_date(filename):
         return False
     return True
 
+def _list_files(bucket, prefix='', start_date=None, end_date=None, sts=None):
+    if end_date is None:
+        end_date = dt.now()
+
+    for o in minio_client.list_objects(bucket, prefix):
+        m_raw = o.object_name[len(prefix):]
+        time, day, start, sts_match = check_date(m_raw)
+        if (time is None) or \
+            (start_date is not None and start_date <= time <= end_date) or \
+            (sts is not None and sts != sts_match):
+            continue
+        yield {'sts': sts_match, 'start_time': start, 'file': o.object_name }
+        break
+
+
+def list_files(bucket, sort=True, prefix='', start_date=None, end_date=None, sts=None):
+    files = _list_files(bucket, prefix, start_date, end_date, sts)
+    if sort:
+        return sorted(files, key=lambda f: [f['sts'], f['start_time']])
+    else:
+        return files
+
+
+def list_run_files(sort=True, start_date=None, end_date=None, sts=None):
+    return list_files(run_bucket, sort, '/runs/', start_date, end_date, sts)
+
+
+def get_run_file(run_file):
+    if isinstance(run_file, dict):
+        run_file = run_file['file']
+    elif '/runs/' not in run_file:
+        run_files = '/runs/' + run_file
+
+    m_obj = minio_client.get_object(run_bucket, run_file)
+    return m_obj.data
+
 
 def _list_error_files(date=None, sts=None):
     prefix = ''
@@ -77,6 +119,7 @@ def _list_error_files(date=None, sts=None):
             continue
 
         yield {'sts': sts_match, 'start_time': start, 'file': get_base(o.object_name) }
+
 
 
 def list_error_files(sort=True, date=None, sts=None):
