@@ -16,6 +16,12 @@ base_regex = r'(?P<base>\d{4}-\d{2}-\d{2}_\d{2}_\d{2}_\d{2}-\d+-.+?-.+?)[-,_,\.]
 ext_regex = r'(?P<base>\d{4}-\d{2}-\d{2}_\d{2}_\d{2}_\d{2}-\d+-.+?-.+?)[-,_,\.](?P<ext>.*?)\.csv'
 error_bucket = 'error-analysis'
 run_bucket = 'ngps-processing'
+prefixes = {
+    'runs': '/runs/',
+    'lidar': '/lidar/',
+    'ats': '/atsgt/'
+}
+
 
 def check_base(filename, regex=base_regex):
     pattern = re.compile(regex)
@@ -80,20 +86,25 @@ def _list_files(bucket, prefix='', start_date=None, end_date=None, sts=None):
             (start_date is not None and start_date <= time <= end_date) or \
             (sts is not None and sts != sts_match):
             continue
-        yield {'sts': sts_match, 'start_time': start, 'file': o.object_name }
-        break
+        yield {
+            'sts': sts_match,
+            'time': time,
+            'file': m_raw,
+            'key': o.object_name,
+            'base': get_base(m_raw)
+        }
 
 
 def list_files(bucket, sort=True, prefix='', start_date=None, end_date=None, sts=None):
     files = _list_files(bucket, prefix, start_date, end_date, sts)
     if sort:
-        return sorted(files, key=lambda f: [f['sts'], f['start_time']])
+        return sorted(files, key=lambda f: [f['sts'], f['time']])
     else:
         return files
 
 
 def list_run_files(sort=True, start_date=None, end_date=None, sts=None):
-    return list_files(run_bucket, sort, '/runs/', start_date, end_date, sts)
+    return list_files(run_bucket, sort, prefixes['runs'], start_date, end_date, sts)
 
 
 def get_run_file(run_file):
@@ -121,7 +132,6 @@ def _list_error_files(date=None, sts=None):
         yield {'sts': sts_match, 'start_time': start, 'file': get_base(o.object_name) }
 
 
-
 def list_error_files(sort=True, date=None, sts=None):
     files = _list_error_files(date, sts)
     if sort:
@@ -132,6 +142,10 @@ def list_error_files(sort=True, date=None, sts=None):
             previous = f
     else:
         return files
+
+
+def download_source_files(run_file):
+    pass
 
 
 def list_matching_error_files(base):
